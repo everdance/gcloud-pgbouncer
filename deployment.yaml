@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "pgbouncer"
+  labels:
+    name: "pgbouncer"
+    criticality: high
+    web-facing: "no"
+    data-classification: "no"
+    app.kubernetes.io/name: "pgbouncer"
+    app.kubernetes.io/version: "${PGB_BUILD_VER}"
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: "pgbouncer"
+  template:
+    metadata:
+      labels:
+        name: "pgbouncer"
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+
+    spec:
+      # NOTE: use cluster critical priority for production
+      # priorityClassName: system-cluster-critical
+      priorityClassName: highest-priority
+      containers:
+      - name: pgbouncer
+        image: "${PGB_IMAGE_TAG}"
+        ports:
+        - containerPort: 5432
+        resources:
+          requests:
+            cpu: 1
+            memory: 256Mi
+          limits:
+            cpu: 3
+            memory: 1G
+      initContainers:
+      - name: cloud-sql-proxy
+        restartPolicy: Always
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.3
+        env:
+        - name: "CLOUD_SQL_PROXY_INSTANCES"
+          # gcloud postgres instance full identifier
+          value: "<cloud_project>:<cluster>:<db_instance>"
+
+        command:
+        - "/cloud-sql-proxy"
+        - "--structured-logs"
+        - "--auto-iam-authn"
+        - "--max-sigterm-delay=60s"
+        - "--port=5431"
+        - "--private-ip"
+        - "$(CLOUD_SQL_PROXY_INSTANCES)"
+        securityContext:
+          runAsNonRoot: true
