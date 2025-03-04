@@ -1,3 +1,6 @@
+
+# Copy and changed based on https://github.com/gmr/alpine-pgbouncer/blob/master/Dockerfile
+
 FROM alpine:3.21 AS build
 ARG VERSION=1.24.0
 
